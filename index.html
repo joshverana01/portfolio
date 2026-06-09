@@ -1,0 +1,529 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Josh Verana — Video Editor</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Barlow+Condensed:ital,wght@0,300;0,400;0,600;0,700;1,300&family=Barlow:wght@300;400;500&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+:root {
+  --bg:     #080808;
+  --bg2:    #0f0f0f;
+  --bg3:    #161616;
+  --text:   #F5F2EE;
+  --muted:  #555;
+  --red:    #BF323A;
+  --red-d:  #8B1D23;
+  --red-l:  #D94550;
+  --border: rgba(245,242,238,0.07);
+  --disp:   'Bebas Neue', sans-serif;
+  --cond:   'Barlow Condensed', sans-serif;
+  --body:   'Barlow', sans-serif;
+  --mono:   'JetBrains Mono', monospace;
+}
+*, *::before, *::after { margin:0; padding:0; box-sizing:border-box; }
+html { scroll-behavior:smooth; }
+body {
+  background: var(--bg);
+  color: var(--text);
+  font-family: var(--body);
+  overflow-x: hidden;
+  cursor: none;
+}
+/* grain */
+body::after {
+  content:'';
+  position:fixed; inset:0;
+  background-image:url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='0.06'/%3E%3C/svg%3E");
+  pointer-events:none; z-index:9990; opacity:0.55;
+}
+a, button { cursor: none; }
+
+/* ── CURSOR ── */
+#cur  { position:fixed;width:10px;height:10px;background:var(--red);border-radius:50%;pointer-events:none;z-index:9999;transform:translate(-50%,-50%);transition:width .2s,height .2s; }
+#cur2 { position:fixed;width:34px;height:34px;border:1px solid rgba(191,50,58,.4);border-radius:50%;pointer-events:none;z-index:9998;transform:translate(-50%,-50%); }
+@media(max-width:768px){ body{ cursor:auto; } #cur,#cur2{ display:none; } }
+
+/* ── PROGRESS BAR ── */
+#prog { position:fixed;top:0;left:0;height:2px;background:var(--red);z-index:1000;width:0;transition:width .1s; }
+
+/* ── NAV ── */
+nav {
+  position:fixed;top:0;left:0;right:0;z-index:100;
+  display:flex;align-items:center;justify-content:space-between;
+  padding:1.5rem 3rem;
+  transition: background .4s, border-color .4s;
+}
+nav.scrolled { background:rgba(8,8,8,.94);backdrop-filter:blur(12px);border-bottom:1px solid var(--border); }
+.nav-logo { font-family:var(--cond);font-weight:700;font-size:1.05rem;letter-spacing:.15em;text-transform:uppercase;text-decoration:none;color:var(--text); }
+.nav-logo span { color:var(--red); }
+.nav-links { display:flex;gap:2.5rem;list-style:none; }
+.nav-links a { font-family:var(--mono);font-size:.62rem;letter-spacing:.2em;text-transform:uppercase;text-decoration:none;color:var(--text);opacity:.45;transition:opacity .2s;position:relative; }
+.nav-links a::after { content:'';position:absolute;bottom:-3px;left:0;width:0;height:1px;background:var(--red);transition:width .3s; }
+.nav-links a:hover { opacity:1; }
+.nav-links a:hover::after { width:100%; }
+
+/* ── HERO ── */
+.hero {
+  min-height:100vh;
+  display:flex;flex-direction:column;justify-content:flex-end;
+  padding:2rem 3rem 4.5rem;
+  position:relative;overflow:hidden;
+}
+/* vignette */
+.hero::before {
+  content:'';position:absolute;inset:0;
+  background: radial-gradient(ellipse at 75% 40%, rgba(191,50,58,.12) 0%, transparent 65%),
+              radial-gradient(ellipse at 20% 80%, rgba(191,50,58,.06) 0%, transparent 50%);
+  pointer-events:none;
+}
+.hero-eyebrow { font-family:var(--mono);font-size:.62rem;letter-spacing:.35em;text-transform:uppercase;color:var(--red);margin-bottom:1rem;opacity:0;animation:fadeUp .8s ease .3s forwards; }
+.hero-name { font-family:var(--disp);font-size:clamp(5.5rem,17vw,20rem);line-height:.84;letter-spacing:-.01em;margin-bottom:2.5rem; }
+.hn-line { display:block;opacity:0;transform:translateY(110%);animation:slideUp .9s cubic-bezier(.16,1,.3,1) forwards; }
+.hn-line:nth-child(1){ animation-delay:.4s; }
+.hn-line:nth-child(2){ animation-delay:.55s; }
+.r { color:var(--red); }
+.hero-foot { display:flex;align-items:flex-end;justify-content:space-between;opacity:0;animation:fadeUp .8s ease 1s forwards; }
+.hero-tagline { font-family:var(--cond);font-size:clamp(.95rem,2vw,1.5rem);font-weight:300;letter-spacing:.07em;text-transform:uppercase;line-height:1.35;color:rgba(245,242,238,.6);max-width:420px; }
+.hero-actions { display:flex;flex-direction:column;align-items:flex-end;gap:.8rem; }
+.btn { display:inline-block;font-family:var(--cond);font-size:.8rem;font-weight:700;letter-spacing:.25em;text-transform:uppercase;text-decoration:none;padding:.9rem 2.5rem;border:2px solid var(--red);background:var(--red);color:var(--text);transition:background .3s,color .3s; }
+.btn:hover { background:transparent;color:var(--red); }
+.scroll-hint { font-family:var(--mono);font-size:.58rem;letter-spacing:.2em;text-transform:uppercase;opacity:.28; }
+.hero-line { position:absolute;bottom:0;left:3rem;right:3rem;height:1px;background:var(--border); }
+
+/* ── TICKER ── */
+.ticker { background:var(--red);padding:.82rem 0;overflow:hidden; }
+.ticker-track { display:flex;white-space:nowrap;animation:tick 24s linear infinite; }
+.ticker-item { font-family:var(--cond);font-size:.7rem;font-weight:700;letter-spacing:.28em;text-transform:uppercase;color:var(--text);padding:0 2rem; }
+.ticker-dot { color:rgba(245,242,238,.35);padding:0 .3rem;font-size:.9rem; }
+
+/* ── SECTION BASE ── */
+.sec { padding:8rem 3rem;border-bottom:1px solid var(--border); }
+.sec-tag { font-family:var(--mono);font-size:.58rem;letter-spacing:.3em;text-transform:uppercase;color:var(--red);margin-bottom:3rem;display:flex;align-items:center;gap:1rem; }
+.sec-tag::after { content:'';flex:1;max-width:90px;height:1px;background:var(--red);opacity:.3; }
+.sec-h { font-family:var(--disp);font-size:clamp(3rem,7vw,8.5rem);line-height:.9;letter-spacing:-.01em;margin-bottom:4rem; }
+
+/* ── SPECIALIZATIONS (was services) ── */
+.specs { display:grid;grid-template-columns:repeat(3,1fr); }
+.spec { padding:2.5rem;border:1px solid var(--border);position:relative;overflow:hidden;transition:background .3s; }
+.spec::before { content:'';position:absolute;top:0;left:0;width:0;height:2px;background:var(--red);transition:width .45s; }
+.spec::after { content:attr(data-num);position:absolute;right:1.5rem;bottom:1rem;font-family:var(--disp);font-size:5rem;color:var(--red);opacity:.05;line-height:1;pointer-events:none; }
+.spec:hover { background:rgba(191,50,58,.04); }
+.spec:hover::before { width:100%; }
+.spec-num { font-family:var(--mono);font-size:.58rem;letter-spacing:.2em;color:var(--red);opacity:.5;margin-bottom:1.5rem;display:block; }
+.spec-title { font-family:var(--cond);font-size:1.35rem;font-weight:700;letter-spacing:.05em;text-transform:uppercase;line-height:1.1;margin-bottom:.75rem; }
+.spec-desc { font-size:.83rem;color:rgba(245,242,238,.42);line-height:1.7; }
+
+/* ── WORK ── */
+.work-head { display:flex;align-items:flex-end;justify-content:space-between;margin-bottom:2.5rem; }
+.lnk { font-family:var(--cond);font-size:.76rem;font-weight:600;letter-spacing:.18em;text-transform:uppercase;text-decoration:none;color:var(--text);opacity:.38;transition:opacity .2s,color .2s; }
+.lnk:hover { opacity:1;color:var(--red); }
+.work-grid { display:grid;grid-template-columns:1fr 1fr;gap:1.5rem; }
+.wcard { position:relative;overflow:hidden;border:1px solid var(--border);aspect-ratio:16/9;cursor:none;transition:border-color .35s; }
+.wcard:hover { border-color:var(--red); }
+.wcard-bg { position:absolute;inset:0;transition:transform .7s ease; }
+.wcard:hover .wcard-bg { transform:scale(1.04); }
+.bg-sf { background:linear-gradient(135deg,#1a0003 0%,#3d0a0e 45%,#0d0002 100%); }
+.bg-lf { background:linear-gradient(135deg,#08000f 0%,#1e0530 50%,#060008 100%); }
+.wcard-body { position:absolute;inset:0;display:flex;flex-direction:column;justify-content:space-between;padding:2rem 2.2rem; }
+.wcard-tag { font-family:var(--mono);font-size:.58rem;letter-spacing:.28em;text-transform:uppercase;color:var(--red); }
+.wcard-title { font-family:var(--disp);font-size:clamp(3.5rem,6vw,6.5rem);line-height:.88;letter-spacing:-.01em;color:var(--text); }
+.wcard-foot { display:flex;align-items:center;justify-content:space-between; }
+.wcard-desc { font-family:var(--cond);font-size:.88rem;font-weight:300;letter-spacing:.06em;text-transform:uppercase;color:rgba(245,242,238,.45);max-width:260px; }
+.wcard-cta { font-family:var(--mono);font-size:.6rem;letter-spacing:.2em;text-transform:uppercase;color:var(--red);display:flex;align-items:center;gap:.5rem;white-space:nowrap;opacity:0;transform:translateX(-6px);transition:opacity .3s,transform .3s; }
+.wcard:hover .wcard-cta { opacity:1;transform:none; }
+.wcard-arrow { font-size:1rem; }
+/* red border sweep on hover */
+.wcard::before { content:'';position:absolute;top:0;left:0;width:0;height:2px;background:var(--red);z-index:2;transition:width .4s; }
+.wcard:hover::before { width:100%; }
+
+/* ── MODAL ── */
+.modal-wrap { position:fixed;inset:0;z-index:500;display:flex;align-items:center;justify-content:center;opacity:0;pointer-events:none;transition:opacity .35s; }
+.modal-wrap.open { opacity:1;pointer-events:all; }
+.modal-backdrop { position:absolute;inset:0;background:rgba(8,8,8,.92);backdrop-filter:blur(8px); }
+.modal { position:relative;z-index:1;width:90vw;max-width:1100px;max-height:88vh;overflow-y:auto;background:var(--bg2);border:1px solid var(--border);display:flex;flex-direction:column;transform:translateY(24px);transition:transform .35s cubic-bezier(.16,1,.3,1); }
+.modal-wrap.open .modal { transform:none; }
+.modal-head { display:flex;align-items:center;justify-content:space-between;padding:1.8rem 2.2rem;border-bottom:1px solid var(--border);position:sticky;top:0;background:var(--bg2);z-index:2; }
+.modal-label { font-family:var(--mono);font-size:.6rem;letter-spacing:.28em;text-transform:uppercase;color:var(--red); }
+.modal-title { font-family:var(--disp);font-size:2.8rem;line-height:1;letter-spacing:-.01em;margin-top:.2rem; }
+.modal-close { font-family:var(--mono);font-size:.6rem;letter-spacing:.2em;text-transform:uppercase;background:none;border:1px solid var(--border);color:var(--text);padding:.65rem 1.2rem;transition:border-color .2s,color .2s;cursor:none; }
+.modal-close:hover { border-color:var(--red);color:var(--red); }
+.modal-grid { display:grid;grid-template-columns:repeat(3,1fr);gap:1px;background:var(--border); }
+.mv { position:relative;aspect-ratio:16/9;background:var(--bg3);overflow:hidden;display:flex;align-items:center;justify-content:center;flex-direction:column;gap:.75rem; }
+.mv-num { position:absolute;top:.8rem;left:.9rem;font-family:var(--mono);font-size:.52rem;letter-spacing:.2em;text-transform:uppercase;color:var(--red);opacity:.45; }
+.mv-play { width:44px;height:44px;border:1px solid rgba(245,242,238,.15);border-radius:50%;display:flex;align-items:center;justify-content:center; }
+.mv-play svg { margin-left:3px; }
+.mv-label { font-family:var(--mono);font-size:.52rem;letter-spacing:.2em;text-transform:uppercase;opacity:.3; }
+.modal-note { padding:1.2rem 2.2rem;border-top:1px solid var(--border);font-family:var(--mono);font-size:.54rem;letter-spacing:.18em;text-transform:uppercase;color:var(--red);opacity:.4; }
+
+/* ── STATS ── */
+.stats { background:var(--red);padding:5rem 3rem; }
+.stats-row { display:grid;grid-template-columns:repeat(4,1fr);gap:2rem; }
+.stat-n { font-family:var(--disp);font-size:clamp(3.5rem,7vw,7rem);color:var(--text);line-height:1; }
+.stat-l { font-family:var(--cond);font-size:.7rem;font-weight:700;letter-spacing:.28em;text-transform:uppercase;color:rgba(245,242,238,.55);margin-top:.3rem; }
+
+/* ── PROCESS ── */
+.process-grid { display:grid;grid-template-columns:repeat(4,1fr);gap:0; }
+.pstep { padding:2.5rem;border:1px solid var(--border);position:relative; }
+.pstep::after { content:'';position:absolute;top:50%;right:-1px;width:1px;height:50%;background:var(--red);opacity:.25;transform:translateY(-50%); }
+.pstep:last-child::after { display:none; }
+.pstep-n { font-family:var(--disp);font-size:4rem;color:var(--red);opacity:.18;line-height:1;margin-bottom:.75rem; }
+.pstep-title { font-family:var(--cond);font-size:1.1rem;font-weight:700;letter-spacing:.06em;text-transform:uppercase;margin-bottom:.6rem; }
+.pstep-desc { font-size:.82rem;color:rgba(245,242,238,.42);line-height:1.65; }
+
+/* ── ABOUT ── */
+.about-grid { display:grid;grid-template-columns:320px 1fr 1fr;gap:4rem;align-items:start; }
+.about-photo { position:relative;aspect-ratio:3/4;background:var(--bg3);border:1px solid var(--border);overflow:hidden;flex-shrink:0; }
+.about-photo-inner { position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:1rem; }
+.about-photo svg { opacity:.18; }
+.about-photo-label { font-family:var(--mono);font-size:.58rem;letter-spacing:.25em;text-transform:uppercase;color:var(--red);opacity:.5; }
+.about-photo-corner { position:absolute;width:18px;height:18px;border-color:var(--red);border-style:solid;opacity:.35; }
+.about-photo-corner.tl { top:12px;left:12px;border-width:1px 0 0 1px; }
+.about-photo-corner.tr { top:12px;right:12px;border-width:1px 1px 0 0; }
+.about-photo-corner.bl { bottom:12px;left:12px;border-width:0 0 1px 1px; }
+.about-photo-corner.br { bottom:12px;right:12px;border-width:0 1px 1px 0; }
+.about-body { font-family:var(--cond);font-size:1.4rem;font-weight:300;line-height:1.55;color:rgba(245,242,238,.72); }
+.about-body strong { color:var(--text);font-weight:600; }
+.about-body em { color:var(--red);font-style:normal;font-weight:600; }
+.about-facts { display:flex;flex-direction:column; }
+.fact { display:flex;flex-direction:column;gap:.22rem;padding:1.3rem 0;border-bottom:1px solid var(--border); }
+.fact:first-child { padding-top:0; }
+.fact-label { font-family:var(--mono);font-size:.56rem;letter-spacing:.28em;text-transform:uppercase;color:var(--red);opacity:.55; }
+.fact-val { font-family:var(--cond);font-size:1rem;font-weight:600;text-transform:uppercase;letter-spacing:.05em; }
+
+
+/* ── CTA ── */
+.cta { padding:10rem 3rem;text-align:center;position:relative;overflow:hidden; }
+.cta::before { content:'LETS WORK';position:absolute;font-family:var(--disp);font-size:22vw;opacity:.022;top:50%;left:50%;transform:translate(-50%,-50%);white-space:nowrap;pointer-events:none;letter-spacing:-.02em; }
+.cta-h { font-family:var(--disp);font-size:clamp(4rem,11vw,13rem);line-height:.88;letter-spacing:-.01em;margin-bottom:2rem; }
+.cta-sub { font-family:var(--cond);font-size:1.1rem;font-weight:300;letter-spacing:.12em;text-transform:uppercase;opacity:.38;margin-bottom:2.5rem; }
+.cta-mail { font-family:var(--disp);font-size:clamp(1.4rem,2.8vw,3rem);color:var(--text);text-decoration:none;border-bottom:2px solid var(--red);padding-bottom:.15rem;display:inline-block;margin-bottom:3.5rem;transition:color .3s; }
+.cta-mail:hover { color:var(--red); }
+
+/* ── FOOTER ── */
+footer { padding:2.5rem 3rem;border-top:1px solid var(--border);display:flex;align-items:center;justify-content:space-between; }
+.ft-copy { font-family:var(--mono);font-size:.58rem;letter-spacing:.15em;text-transform:uppercase;opacity:.28; }
+.ft-socials { display:flex;gap:2rem; }
+.ft-socials a { font-family:var(--mono);font-size:.58rem;letter-spacing:.18em;text-transform:uppercase;text-decoration:none;color:var(--text);opacity:.3;transition:opacity .2s,color .2s; }
+.ft-socials a:hover { opacity:1;color:var(--red); }
+
+/* ── ANIMATIONS ── */
+@keyframes fadeUp { from{opacity:0;transform:translateY(20px)} to{opacity:1;transform:none} }
+@keyframes slideUp { from{opacity:0;transform:translateY(110%)} to{opacity:1;transform:none} }
+@keyframes tick { from{transform:translateX(0)} to{transform:translateX(-50%)} }
+.rev { opacity:0;transform:translateY(42px);transition:opacity .9s ease,transform .9s ease; }
+.rev.in { opacity:1;transform:none; }
+
+/* ── RESPONSIVE ── */
+@media(max-width:960px){
+  nav { padding:1.2rem 1.5rem; }
+  .hero { padding:1.5rem 1.5rem 3.5rem; }
+  .sec { padding:5rem 1.5rem; }
+  .specs { grid-template-columns:1fr 1fr; }
+  .work-grid { grid-template-columns:1fr; }
+  .modal-grid { grid-template-columns:repeat(2,1fr); }
+  .wcard { aspect-ratio:4/3; }
+  .stats-row { grid-template-columns:repeat(2,1fr); }
+  .process-grid { grid-template-columns:1fr 1fr; }
+  .about-grid { grid-template-columns:1fr;gap:3rem; }
+  .hero-foot { flex-direction:column;align-items:flex-start;gap:2rem; }
+  .hero-actions { align-items:flex-start; }
+  .cta { padding:6rem 1.5rem; }
+  footer { flex-direction:column;gap:1.5rem;text-align:center; }
+}
+@media(max-width:560px){
+  .specs,.process-grid { grid-template-columns:1fr; }
+}
+</style>
+</head>
+<body>
+
+<div id="cur"></div>
+<div id="cur2"></div>
+<div id="prog"></div>
+
+<!-- NAV -->
+<nav id="nav">
+  <a href="#" class="nav-logo">Josh <span>Verana</span></a>
+  <ul class="nav-links">
+    <li><a href="#work">Work</a></li>
+    <li><a href="#process">Process</a></li>
+    <li><a href="#about">About</a></li>
+    <li><a href="#contact">Contact</a></li>
+  </ul>
+</nav>
+
+<!-- HERO -->
+<section class="hero">
+  <p class="hero-eyebrow">Video Editor — Manila, Philippines</p>
+  <h1 class="hero-name">
+    <span class="hn-line">JOSH</span>
+    <span class="hn-line">VER<span class="r">A</span>NA</span>
+  </h1>
+  <div class="hero-foot">
+    <p class="hero-tagline">Raw footage in.<br>Stories that hit different — out.</p>
+    <div class="hero-actions">
+      <a href="#work" class="btn">See My Work →</a>
+      <span class="scroll-hint">↓ Scroll</span>
+    </div>
+  </div>
+  <div class="hero-line"></div>
+</section>
+
+<!-- TICKER -->
+<div class="ticker">
+  <div class="ticker-track">
+    <span class="ticker-item">Short-Form Editing</span><span class="ticker-dot">✦</span>
+    <span class="ticker-item">Long-Form Editing</span><span class="ticker-dot">✦</span>
+    <span class="ticker-item">Color Grading</span><span class="ticker-dot">✦</span>
+    <span class="ticker-item">Sound Design</span><span class="ticker-dot">✦</span>
+    <span class="ticker-item">Motion Graphics</span><span class="ticker-dot">✦</span>
+    <span class="ticker-item">Content Repurposing</span><span class="ticker-dot">✦</span>
+    <span class="ticker-item">Reels · TikTok · Shorts</span><span class="ticker-dot">✦</span>
+    <!-- loop -->
+    <span class="ticker-item">Short-Form Editing</span><span class="ticker-dot">✦</span>
+    <span class="ticker-item">Long-Form Editing</span><span class="ticker-dot">✦</span>
+    <span class="ticker-item">Color Grading</span><span class="ticker-dot">✦</span>
+    <span class="ticker-item">Sound Design</span><span class="ticker-dot">✦</span>
+    <span class="ticker-item">Motion Graphics</span><span class="ticker-dot">✦</span>
+    <span class="ticker-item">Content Repurposing</span><span class="ticker-dot">✦</span>
+    <span class="ticker-item">Reels · TikTok · Shorts</span><span class="ticker-dot">✦</span>
+  </div>
+</div>
+
+<!-- SPECIALIZATIONS -->
+<section class="sec rev" id="services">
+  <div class="sec-tag">01 / What I Edit</div>
+  <h2 class="sec-h">THE EDIT<br>IS MY ART</h2>
+  <div class="specs">
+    <div class="spec" data-num="01"><span class="spec-num">01</span><h3 class="spec-title">Short-Form Video</h3><p class="spec-desc">Reels, TikToks, and YouTube Shorts cut to hook viewers in the first second and hold them to the last.</p></div>
+    <div class="spec" data-num="02"><span class="spec-num">02</span><h3 class="spec-title">Long-Form Video</h3><p class="spec-desc">YouTube videos, vlogs, interviews, and documentaries — paced to keep people watching the whole way through.</p></div>
+    <div class="spec" data-num="03"><span class="spec-num">03</span><h3 class="spec-title">Brand &amp; Ad Videos</h3><p class="spec-desc">Promo videos and commercial cuts that communicate your brand clearly and drive action — fast.</p></div>
+    <div class="spec" data-num="04"><span class="spec-num">04</span><h3 class="spec-title">Color Grading</h3><p class="spec-desc">A consistent, cinematic color grade that makes your footage look intentional and high-production.</p></div>
+    <div class="spec" data-num="05"><span class="spec-num">05</span><h3 class="spec-title">Motion &amp; Captions</h3><p class="spec-desc">Animated text, callouts, lower thirds, and on-screen captions designed to enhance — not distract.</p></div>
+    <div class="spec" data-num="06"><span class="spec-num">06</span><h3 class="spec-title">Content Repurposing</h3><p class="spec-desc">One long video turned into five platform-ready clips. More reach, same footage, zero extra filming.</p></div>
+  </div>
+</section>
+
+<!-- WORK -->
+<section class="sec rev" id="work">
+  <div class="work-head">
+    <div>
+      <div class="sec-tag">02 / Selected Work</div>
+      <h2 class="sec-h" style="margin-bottom:0">PORTFOLIO</h2>
+    </div>
+  </div>
+  <div class="work-grid">
+    <!-- SHORT FORM CARD -->
+    <div class="wcard" onclick="openModal('sf')">
+      <div class="wcard-bg bg-sf"></div>
+      <div class="wcard-body">
+        <div class="wcard-tag">01 — Click to View Samples</div>
+        <div class="wcard-title">SHORT<br>FORM</div>
+        <div class="wcard-foot">
+          <span class="wcard-desc">Reels · TikTok · Shorts · Ads</span>
+          <span class="wcard-cta">View All <span class="wcard-arrow">→</span></span>
+        </div>
+      </div>
+    </div>
+    <!-- LONG FORM CARD -->
+    <div class="wcard" onclick="openModal('lf')">
+      <div class="wcard-bg bg-lf"></div>
+      <div class="wcard-body">
+        <div class="wcard-tag">02 — Click to View Samples</div>
+        <div class="wcard-title">LONG<br>FORM</div>
+        <div class="wcard-foot">
+          <span class="wcard-desc">YouTube · Vlogs · Interviews · Docs</span>
+          <span class="wcard-cta">View All <span class="wcard-arrow">→</span></span>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- MODAL: SHORT FORM -->
+<div class="modal-wrap" id="modal-sf">
+  <div class="modal-backdrop" onclick="closeModal('sf')"></div>
+  <div class="modal">
+    <div class="modal-head">
+      <div>
+        <div class="modal-label">01 / Short Form</div>
+        <div class="modal-title">SHORT FORM</div>
+      </div>
+      <button class="modal-close" onclick="closeModal('sf')">✕ Close</button>
+    </div>
+    <div class="modal-grid">
+      <div class="mv"><span class="mv-num">SF — 01</span><div class="mv-play"><svg width="14" height="14" viewBox="0 0 14 14" fill="none"><path d="M3 2l9 5-9 5V2z" fill="rgba(245,242,238,0.5)"/></svg></div><span class="mv-label">Add video here</span></div>
+      <div class="mv"><span class="mv-num">SF — 02</span><div class="mv-play"><svg width="14" height="14" viewBox="0 0 14 14" fill="none"><path d="M3 2l9 5-9 5V2z" fill="rgba(245,242,238,0.5)"/></svg></div><span class="mv-label">Add video here</span></div>
+      <div class="mv"><span class="mv-num">SF — 03</span><div class="mv-play"><svg width="14" height="14" viewBox="0 0 14 14" fill="none"><path d="M3 2l9 5-9 5V2z" fill="rgba(245,242,238,0.5)"/></svg></div><span class="mv-label">Add video here</span></div>
+      <div class="mv"><span class="mv-num">SF — 04</span><div class="mv-play"><svg width="14" height="14" viewBox="0 0 14 14" fill="none"><path d="M3 2l9 5-9 5V2z" fill="rgba(245,242,238,0.5)"/></svg></div><span class="mv-label">Add video here</span></div>
+      <div class="mv"><span class="mv-num">SF — 05</span><div class="mv-play"><svg width="14" height="14" viewBox="0 0 14 14" fill="none"><path d="M3 2l9 5-9 5V2z" fill="rgba(245,242,238,0.5)"/></svg></div><span class="mv-label">Add video here</span></div>
+      <div class="mv"><span class="mv-num">SF — 06</span><div class="mv-play"><svg width="14" height="14" viewBox="0 0 14 14" fill="none"><path d="M3 2l9 5-9 5V2z" fill="rgba(245,242,238,0.5)"/></svg></div><span class="mv-label">Add video here</span></div>
+    </div>
+    <div class="modal-note">← Replace each slot with your real short-form video embeds or thumbnails</div>
+  </div>
+</div>
+
+<!-- MODAL: LONG FORM -->
+<div class="modal-wrap" id="modal-lf">
+  <div class="modal-backdrop" onclick="closeModal('lf')"></div>
+  <div class="modal">
+    <div class="modal-head">
+      <div>
+        <div class="modal-label">02 / Long Form</div>
+        <div class="modal-title">LONG FORM</div>
+      </div>
+      <button class="modal-close" onclick="closeModal('lf')">✕ Close</button>
+    </div>
+    <div class="modal-grid">
+      <div class="mv"><span class="mv-num">LF — 01</span><div class="mv-play"><svg width="14" height="14" viewBox="0 0 14 14" fill="none"><path d="M3 2l9 5-9 5V2z" fill="rgba(245,242,238,0.5)"/></svg></div><span class="mv-label">Add video here</span></div>
+      <div class="mv"><span class="mv-num">LF — 02</span><div class="mv-play"><svg width="14" height="14" viewBox="0 0 14 14" fill="none"><path d="M3 2l9 5-9 5V2z" fill="rgba(245,242,238,0.5)"/></svg></div><span class="mv-label">Add video here</span></div>
+      <div class="mv"><span class="mv-num">LF — 03</span><div class="mv-play"><svg width="14" height="14" viewBox="0 0 14 14" fill="none"><path d="M3 2l9 5-9 5V2z" fill="rgba(245,242,238,0.5)"/></svg></div><span class="mv-label">Add video here</span></div>
+      <div class="mv"><span class="mv-num">LF — 04</span><div class="mv-play"><svg width="14" height="14" viewBox="0 0 14 14" fill="none"><path d="M3 2l9 5-9 5V2z" fill="rgba(245,242,238,0.5)"/></svg></div><span class="mv-label">Add video here</span></div>
+      <div class="mv"><span class="mv-num">LF — 05</span><div class="mv-play"><svg width="14" height="14" viewBox="0 0 14 14" fill="none"><path d="M3 2l9 5-9 5V2z" fill="rgba(245,242,238,0.5)"/></svg></div><span class="mv-label">Add video here</span></div>
+      <div class="mv"><span class="mv-num">LF — 06</span><div class="mv-play"><svg width="14" height="14" viewBox="0 0 14 14" fill="none"><path d="M3 2l9 5-9 5V2z" fill="rgba(245,242,238,0.5)"/></svg></div><span class="mv-label">Add video here</span></div>
+    </div>
+    <div class="modal-note">← Replace each slot with your real long-form video embeds or thumbnails</div>
+  </div>
+</div>
+
+<!-- STATS -->
+<div class="stats rev">
+  <div class="stats-row">
+    <div class="stat"><div class="stat-n">500+</div><div class="stat-l">Videos Edited</div></div>
+    <div class="stat"><div class="stat-n">100M+</div><div class="stat-l">Views Generated</div></div>
+    <div class="stat"><div class="stat-n">3+</div><div class="stat-l">Years Editing</div></div>
+    <div class="stat"><div class="stat-n">100%</div><div class="stat-l">Client Satisfaction</div></div>
+  </div>
+</div>
+
+<!-- PROCESS -->
+<section class="sec rev" id="process">
+  <div class="sec-tag">03 / How It Works</div>
+  <h2 class="sec-h">THE<br>PROCESS</h2>
+  <div class="process-grid">
+    <div class="pstep">
+      <div class="pstep-n">01</div>
+      <h3 class="pstep-title">Brief &amp; Vision</h3>
+      <p class="pstep-desc">You tell me the goal, the audience, the vibe. I ask the right questions so we're aligned before a single cut is made.</p>
+    </div>
+    <div class="pstep">
+      <div class="pstep-n">02</div>
+      <h3 class="pstep-title">Raw Footage In</h3>
+      <p class="pstep-desc">Send me your clips, assets, and references. I review everything and start building the edit structure.</p>
+    </div>
+    <div class="pstep">
+      <div class="pstep-n">03</div>
+      <h3 class="pstep-title">Edit &amp; Refine</h3>
+      <p class="pstep-desc">First cut delivered. You review, give feedback, and I revise until the edit feels exactly right.</p>
+    </div>
+    <div class="pstep">
+      <div class="pstep-n">04</div>
+      <h3 class="pstep-title">Final Delivery</h3>
+      <p class="pstep-desc">Export in your preferred format and platform specs — ready to upload, publish, and perform.</p>
+    </div>
+  </div>
+</section>
+
+<!-- ABOUT -->
+<section class="sec rev" id="about">
+  <div class="sec-tag">04 / About</div>
+  <div class="about-grid">
+    <!-- PHOTO PLACEHOLDER -->
+    <div class="about-photo">
+      <div class="about-photo-inner">
+        <svg width="64" height="64" viewBox="0 0 64 64" fill="none" xmlns="http://www.w3.org/2000/svg">
+          <circle cx="32" cy="22" r="12" stroke="#F5F2EE" stroke-width="1.5"/>
+          <path d="M8 56c0-13.255 10.745-24 24-24s24 10.745 24 24" stroke="#F5F2EE" stroke-width="1.5" stroke-linecap="round"/>
+        </svg>
+        <span class="about-photo-label">Your photo here</span>
+      </div>
+      <div class="about-photo-corner tl"></div>
+      <div class="about-photo-corner tr"></div>
+      <div class="about-photo-corner bl"></div>
+      <div class="about-photo-corner br"></div>
+    </div>
+    <div>
+      <h2 class="sec-h">THE EDITOR<br>BEHIND IT</h2>
+      <p class="about-body">
+        I'm <strong>Josh Verana</strong> — a video editor based in the <strong>Philippines</strong>. I obsess over pacing, rhythm, and the exact moment a cut hits hardest.<br><br>
+        I don't just trim clips. I build <em>stories</em> — the kind that make people watch twice, share without thinking, and actually remember your brand.
+      </p>
+    </div>
+    <div class="about-facts">
+      <div class="fact"><span class="fact-label">Location</span><span class="fact-val">Manila, Philippines</span></div>
+      <div class="fact"><span class="fact-label">Focus</span><span class="fact-val">Video Editing</span></div>
+      <div class="fact"><span class="fact-label">Tools</span><span class="fact-val">Premiere Pro · After Effects · CapCut · DaVinci</span></div>
+      <div class="fact"><span class="fact-label">Platforms</span><span class="fact-val">YouTube · TikTok · Instagram · Facebook</span></div>
+      <div class="fact"><span class="fact-label">Available For</span><span class="fact-val">Freelance · Retainer · One-Off Projects</span></div>
+      <div class="fact"><span class="fact-label">Email</span><span class="fact-val" style="color:var(--red)">joshverana0@gmail.com</span></div>
+    </div>
+  </div>
+</section>
+
+
+<!-- CTA -->
+<section class="cta rev" id="contact">
+  <div class="sec-tag" style="justify-content:center;margin-bottom:2rem;">05 / Let's Work</div>
+  <h2 class="cta-h">READY TO<br><span class="r">HIT</span><br>PUBLISH?</h2>
+  <p class="cta-sub">Send me your footage. I'll handle the rest.</p>
+  <br>
+  <a href="mailto:joshverana0@gmail.com" class="cta-mail">JOSHVERANA0@GMAIL.COM</a>
+  <br>
+  <a href="mailto:joshverana0@gmail.com" class="btn">Start a Project →</a>
+</section>
+
+<!-- FOOTER -->
+<footer>
+  <span class="ft-copy">© 2025 Josh Verana. All rights reserved.</span>
+  <div class="ft-socials">
+    <a href="#">Instagram</a>
+    <a href="#">TikTok</a>
+    <a href="#">YouTube</a>
+    <a href="#">LinkedIn</a>
+  </div>
+</footer>
+
+<script>
+// Cursor
+const cur = document.getElementById('cur');
+const cur2 = document.getElementById('cur2');
+let mx=0,my=0,fx=0,fy=0;
+document.addEventListener('mousemove',e=>{ mx=e.clientX;my=e.clientY;cur.style.left=mx+'px';cur.style.top=my+'px'; });
+(function loop(){ fx+=(mx-fx)*.11; fy+=(my-fy)*.11; cur2.style.left=fx+'px'; cur2.style.top=fy+'px'; requestAnimationFrame(loop); })();
+
+// Scroll progress + nav
+const prog=document.getElementById('prog');
+const nav=document.getElementById('nav');
+window.addEventListener('scroll',()=>{
+  const p=window.scrollY/(document.documentElement.scrollHeight-window.innerHeight)*100;
+  prog.style.width=p+'%';
+  nav.classList.toggle('scrolled',window.scrollY>60);
+});
+
+// Modal
+function openModal(type) {
+  const m = document.getElementById('modal-' + type);
+  m.classList.add('open');
+  document.body.style.overflow = 'hidden';
+}
+function closeModal(type) {
+  const m = document.getElementById('modal-' + type);
+  m.classList.remove('open');
+  document.body.style.overflow = '';
+}
+document.addEventListener('keydown', e => {
+  if (e.key === 'Escape') {
+    ['sf','lf'].forEach(t => closeModal(t));
+  }
+});
+
+const obs=new IntersectionObserver(entries=>{
+  entries.forEach(e=>{ if(e.isIntersecting) e.target.classList.add('in'); });
+},{threshold:.1});
+document.querySelectorAll('.rev').forEach(el=>obs.observe(el));
+</script>
+</body>
+</html>
